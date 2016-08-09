@@ -1,12 +1,8 @@
 {
-  "name": "GATWebView",
+  "name": "react-native-gat-webview",
   "version": "0.0.1",
-  "private": true,
-  "scripts": {
-    "start": "node node_modules/react-native/local-cli/cli.js start"
-  },
-  "dependencies": {
-    "react": "15.2.1",
-    "react-native": "0.31.0"
-  }
+  "description": "React Native WebView Linking CallBack",
+  "main":"gat-webview",
+  "keywords": "react-native",
+  "author" : "Mars"
 }
