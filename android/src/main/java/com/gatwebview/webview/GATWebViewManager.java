@@ -4,6 +4,8 @@ import android.graphics.Bitmap;
 import android.os.Build;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
+import android.view.ViewGroup.LayoutParams;
+import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
@@ -30,6 +32,9 @@ import com.facebook.react.views.webview.WebViewConfig;
 import com.facebook.react.views.webview.events.TopLoadingErrorEvent;
 import com.facebook.react.views.webview.events.TopLoadingFinishEvent;
 import com.facebook.react.views.webview.events.TopLoadingStartEvent;
+
+import android.content.Intent;
+import android.net.Uri;
 
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
@@ -82,9 +87,21 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
     @Override
     protected WebView createViewInstance(ThemedReactContext reactContext) {
         GATWebView webView = new GATWebView(reactContext);
-        webView.setWebChromeClient(new WebChromeClient());
-        reactContext.addLifecycleEventListener(webView);
-        mWebViewConfig.configWebView(webView);
+        webView.setWebChromeClient(new WebChromeClient() {
+      @Override
+      public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
+        callback.invoke(origin, true, false);
+      }
+    });
+    reactContext.addLifecycleEventListener(webView);
+    mWebViewConfig.configWebView(webView);
+    webView.getSettings().setBuiltInZoomControls(true);
+    webView.getSettings().setDisplayZoomControls(false);
+
+    // Fixes broken full-screen modals/galleries due to body height being 0.
+    webView.setLayoutParams(
+            new LayoutParams(LayoutParams.MATCH_PARENT,
+                LayoutParams.MATCH_PARENT));
 
         mReactContext = reactContext;
         if (ReactBuildConfig.DEBUG && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
@@ -236,16 +253,23 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
 
         @Override
         public boolean shouldOverrideUrlLoading(WebView view, String url) {
-            if(url.contains("gatapp://")){
-                WritableMap event = Arguments.createMap();
-                event.putString(JS_JSON_NAME, url.substring(url.indexOf("//")+2));
-                mReactContext.getJSModule(RCTEventEmitter.class).receiveEvent(
-                        view.getId(),
-                        "topChange",
-                        event);
-                return true;
-            }
-            return super.shouldOverrideUrlLoading(view, url);
+          if (url.startsWith("http://") || url.startsWith("https://")) {
+         return false;
+       }else if(url.contains("gatapp://")){
+           WritableMap event = Arguments.createMap();
+           event.putString(JS_JSON_NAME, url.substring(url.indexOf("//")+2));
+           mReactContext.getJSModule(RCTEventEmitter.class).receiveEvent(
+                   view.getId(),
+                   "topChange",
+                   event);
+           return true;
+       } else {
+         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+         view.getContext().startActivity(intent);
+         return true;
+       }
+
         }
 
         private boolean mLastLoadFailed = false;
@@ -425,4 +449,3 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
     }
 
 }
-
