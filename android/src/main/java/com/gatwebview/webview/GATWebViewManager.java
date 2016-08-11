@@ -1,5 +1,6 @@
 package com.gatwebview.webview;
 
+import android.annotation.TargetApi;
 import android.graphics.Bitmap;
 import android.os.Build;
 import android.support.annotation.Nullable;

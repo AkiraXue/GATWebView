@@ -3,7 +3,7 @@
 1, add the following codes to your `your project folder/package.json`
 ```
 "dependencies": {
-    "react-native-gat-webview":"git+ssh://git@gitlab.wuxingdev.cn:frontend/GATWebView.git#0.13-webview"
+    "react-native-gat-webview":"git+ssh://git@gitlab.wuxingdev.cn:frontend/GATWebView.git#0.14-webview"
   }
 ```
 2, use command
