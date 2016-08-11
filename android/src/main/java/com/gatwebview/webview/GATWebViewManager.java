@@ -135,6 +135,7 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
         }
     }
 
+    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
     @ReactProp(name = "mediaPlaybackRequiresUserAction")
     public void setMediaPlaybackRequiresUserAction(WebView view, boolean requires) {
         view.getSettings().setMediaPlaybackRequiresUserGesture(requires);
