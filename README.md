@@ -3,7 +3,7 @@
 1, add the following codes to your `your project folder/package.json`
 ```
 "dependencies": {
-    "react-native-gat-webview":"git+ssh://git@gitlab.wuxingdev.cn:frontend/GATWebView.git#0.15-webview"
+    "react-native-gat-webview":"git+ssh://git@gitlab.wuxingdev.cn:frontend/GATWebView.git#0.16-webview"
   }
 ```
 2, use command
@@ -45,6 +45,7 @@ import GATWebView from 'react-native-gat-webview';
 ```
 
 #### javascriptInterface
+`Android only`
 This is Android native `WebView` method , implement `html->javascript` visit `react-native`.
 
 #### onCallBackMessage

@@ -330,7 +330,7 @@ var GATWebView = React.createClass({
     if(!this.props.onCallBackMessage){
       return;
     }
-    this.props.onCallBackMessage(event.nativeEvent.jsJson);
+    this.props.onCallBackMessage(decodeURIComponent(event.nativeEvent.jsJson));
   },
 });
 
