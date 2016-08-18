@@ -1,6 +1,6 @@
 {
   "name": "react-native-gat-webview",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "React Native WebView Linking CallBack",
   "main":"gat-webview",
   "keywords": "react-native",
