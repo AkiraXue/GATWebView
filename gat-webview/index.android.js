@@ -27,7 +27,7 @@ var resolveAssetSource = require('resolveAssetSource');
 
 var PropTypes = React.PropTypes;
 
-var RCT_WEBVIEW_REF = 'webview';
+var RCT_WEBVIEW_REF = 'gatwebview';
 
 var WebViewState = keyMirror({
   IDLE: null,
@@ -119,12 +119,7 @@ var GATWebView = React.createClass({
 
 
 
-    javascriptInterface : PropTypes.oneOfType([
-      PropTypes.shape({
-        fName : PropTypes.string,
-        eName : PropTypes.string,
-      }),
-    ]),
+    functionName : PropTypes.string,
 
     /**
      * Used on Android only, JS is enabled by default for WebView on iOS
@@ -225,7 +220,7 @@ var GATWebView = React.createClass({
     var webView =
       <GWebView
         ref={RCT_WEBVIEW_REF}
-        key="webViewKey"
+        key="gatwebViewKey"
         style={webViewStyles}
         source={resolveAssetSource(source)}
         scalesPageToFit={this.props.scalesPageToFit}
@@ -240,7 +235,7 @@ var GATWebView = React.createClass({
         onLoadingError={this.onLoadingError}
         testID={this.props.testID}
         mediaPlaybackRequiresUserAction={this.props.mediaPlaybackRequiresUserAction}
-        javascriptInterface = {this.props.javascriptInterface}
+        functionName = {this.props.functionName}
         onChange = {this.onCallBackMessage}
       />;
 
@@ -251,11 +246,18 @@ var GATWebView = React.createClass({
       </View>
     );
   },
+  callJavaScript:function(message: string){
+    UIManager.dispatchViewManagerCommand(
+      this.getWebViewHandle(),
+      UIManager.GATWebView.Commands.callJavaScript,
+      [message]
+    );
+  },
 
   goForward: function() {
     UIManager.dispatchViewManagerCommand(
       this.getWebViewHandle(),
-      UIManager.GWebView.Commands.goForward,
+      UIManager.GATWebView.Commands.goForward,
       null
     );
   },
@@ -263,7 +265,7 @@ var GATWebView = React.createClass({
   goBack: function() {
     UIManager.dispatchViewManagerCommand(
       this.getWebViewHandle(),
-      UIManager.GWebView.Commands.goBack,
+      UIManager.GATWebView.Commands.goBack,
       null
     );
   },
@@ -271,7 +273,7 @@ var GATWebView = React.createClass({
   reload: function() {
     UIManager.dispatchViewManagerCommand(
       this.getWebViewHandle(),
-      UIManager.GWebView.Commands.reload,
+      UIManager.GATWebView.Commands.reload,
       null
     );
   },
@@ -279,7 +281,7 @@ var GATWebView = React.createClass({
   stopLoading: function() {
     UIManager.dispatchViewManagerCommand(
       this.getWebViewHandle(),
-      UIManager.GWebView.Commands.stopLoading,
+      UIManager.GATWebView.Commands.stopLoading,
       null
     );
   },
@@ -334,9 +336,7 @@ var GATWebView = React.createClass({
   },
 });
 
-var GWebView = requireNativeComponent('GATWebView', GATWebView, {
-  nativeOnly: {onChange: true}
-});
+var GWebView = requireNativeComponent('GATWebView', GATWebView);
 
 var styles = StyleSheet.create({
   container: {

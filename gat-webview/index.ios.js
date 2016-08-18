@@ -20,13 +20,13 @@ import {
  EdgeInsetsPropType,
  StyleSheet,
  Text,
- UIManager,
  View,
  ScrollView,
- WebView,
  requireNativeComponent,
  NativeModules,
 }from 'react-native';
+
+var UIManager = require('UIManager');
 
 var deprecatedPropType = require('react-native/Libraries/Utilities/deprecatedPropType');
 var invariant = require('fbjs/lib/invariant');
@@ -38,9 +38,14 @@ var resolveAssetSource = require('react-native/Libraries/Image/resolveAssetSourc
 var PropTypes = React.PropTypes;
 var RCTWebViewManager = NativeModules.WebViewManager;
 
-
 var BGWASH = 'rgba(255,255,255,0.8)';
 var RCT_WEBVIEW_REF = 'webview';
+
+var WebViewState = keyMirror({
+  IDLE: null,
+  LOADING: null,
+  ERROR: null,
+});
 
 const NavigationType = keyMirror({
   click: true,
@@ -70,6 +75,28 @@ const DataDetectorTypes = [
   'all',
 ];
 
+var defaultRenderLoading = () => (
+  <View style={styles.loadingView}>
+    <ActivityIndicator />
+  </View>
+);
+var defaultRenderError = (errorDomain, errorCode, errorDesc) => (
+  <View style={styles.errorContainer}>
+    <Text style={styles.errorTextTitle}>
+      Error loading page
+    </Text>
+    <Text style={styles.errorText}>
+      {'Domain: ' + errorDomain}
+    </Text>
+    <Text style={styles.errorText}>
+      {'Error Code: ' + errorCode}
+    </Text>
+    <Text style={styles.errorText}>
+      {'Description: ' + errorDesc}
+    </Text>
+  </View>
+);
+
 /**
  * `WebView` renders web content in a native view.
  *
@@ -98,7 +125,6 @@ var GATWebView = React.createClass({
     NavigationType: NavigationType,
   },
 
-
   propTypes: {
     ...View.propTypes,
 
@@ -111,7 +137,6 @@ var GATWebView = React.createClass({
       PropTypes.string,
       'Use the `source` prop instead.'
     ),
-
     /**
      * Loads static html or a uri (with optional headers) in the WebView.
      */
@@ -227,10 +252,6 @@ var GATWebView = React.createClass({
      * The style to apply to the `WebView`.
      */
     style: View.propTypes.style,
-    /**
-      * Function that is invoked load url interception.
-      */
-    onCallBackMessage: PropTypes.func,
 
     /**
      * Determines the types of data converted to clickable URLs in the web view’s content.
@@ -293,7 +314,7 @@ var GATWebView = React.createClass({
      * to stop loading.
      * @platform ios
      */
-    // onShouldStartLoadWithRequest: PropTypes.func,
+    onShouldStartLoadWithRequest: PropTypes.func,
 
     /**
      * Boolean that determines whether HTML5 videos play inline or use the
@@ -311,10 +332,58 @@ var GATWebView = React.createClass({
      * to tap them before they start playing. The default value is `false`.
      */
     mediaPlaybackRequiresUserAction: PropTypes.bool,
+    onCallBackMessage: PropTypes.func,
+  },
+
+  getInitialState: function() {
+    return {
+      viewState: WebViewState.IDLE,
+      lastErrorEvent: (null: ?ErrorEvent),
+      startInLoadingState: true,
+    };
+  },
+
+  componentWillMount: function() {
+    if (this.props.startInLoadingState) {
+      this.setState({viewState: WebViewState.LOADING});
+    }
   },
 
   render: function() {
+    var otherView = null;
+    if (this.state.viewState === WebViewState.LOADING) {
+      otherView = (this.props.renderLoading || defaultRenderLoading)();
+    } else if (this.state.viewState === WebViewState.ERROR) {
+      var errorEvent = this.state.lastErrorEvent;
+      invariant(
+        errorEvent != null,
+        'lastErrorEvent expected to be non-null'
+      );
+      otherView = (this.props.renderError || defaultRenderError)(
+        errorEvent.domain,
+        errorEvent.code,
+        errorEvent.description
+      );
+    } else if (this.state.viewState !== WebViewState.IDLE) {
+      console.error(
+        'RCTWebView invalid state encountered: ' + this.state.loading
+      );
+    }
 
+    var webViewStyles = [styles.container, styles.webView, this.props.style];
+    if (this.state.viewState === WebViewState.LOADING ||
+      this.state.viewState === WebViewState.ERROR) {
+      // if we're in either LOADING or ERROR states, don't show the webView
+      webViewStyles.push(styles.hidden);
+    }
+
+    var onShouldStartLoadWithRequest = this.props.onShouldStartLoadWithRequest && ((event: Event) => {
+      var shouldStart = this.props.onShouldStartLoadWithRequest &&
+        this.props.onShouldStartLoadWithRequest(event.nativeEvent);
+      RCTWebViewManager.startLoadWithResult(!!shouldStart, event.nativeEvent.lockIdentifier);
+    });
+
+    var decelerationRate = processDecelerationRate(this.props.decelerationRate);
 
     var source = this.props.source || {};
     if (this.props.html) {
@@ -324,77 +393,96 @@ var GATWebView = React.createClass({
     }
 
     var webView =
-      <WebView
+      <RCTWebView
         ref={RCT_WEBVIEW_REF}
         key="webViewKey"
-        style={this.props.style}
-        source={source}
+        style={webViewStyles}
+        source={resolveAssetSource(source)}
         injectedJavaScript={this.props.injectedJavaScript}
         bounces={this.props.bounces}
         scrollEnabled={this.props.scrollEnabled}
-        decelerationRate={this.props.decelerationRate}
+        decelerationRate={decelerationRate}
         contentInset={this.props.contentInset}
         automaticallyAdjustContentInsets={this.props.automaticallyAdjustContentInsets}
-        onLoadStart={this.props.onLoadStart}
-        onLoadEnd={this.props.onLoadEnd}
-        onError={this.props.onError}
-        onLoad={this.props.onLoad}
-        onShouldStartLoadWithRequest={this.onShouldStartLoadWithRequest}
+        onLoadingStart={this._onLoadingStart}
+        onLoadingFinish={this._onLoadingFinish}
+        onLoadingError={this._onLoadingError}
+        onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
         scalesPageToFit={this.props.scalesPageToFit}
         allowsInlineMediaPlayback={this.props.allowsInlineMediaPlayback}
         mediaPlaybackRequiresUserAction={this.props.mediaPlaybackRequiresUserAction}
         dataDetectorTypes={this.props.dataDetectorTypes}
+        onCallBackMessage={this._onCallBackMessage}
       />;
 
     return (
       <View style={styles.container}>
         {webView}
+        {otherView}
       </View>
     );
   },
-
-  onShouldStartLoadWithRequest :function(event: Event){
-    if(this.props.onCallBackMessage){
-      var url = event.url;
-      if(url.indexOf('gatapp://')>-1){
-        this.props.onCallBackMessage(decodeURIComponent(url.substring(url.indexOf('//')+2)));
-        return false;
-      }
-        return true;
-    }else{
-      return true;
-    }
-
+  callJavaScript: function(message:string) {
+    UIManager.dispatchViewManagerCommand(
+      this.getWebViewHandle(),
+      UIManager.RCTGATWebView.Commands.callJavaScript,
+      [message]
+    );
   },
-
   /**
    * Go forward one page in the web view's history.
    */
   goForward: function() {
-    this.refs[WEBVIEW_REF].goForward();
+    UIManager.dispatchViewManagerCommand(
+      this.getWebViewHandle(),
+      UIManager.RCTGATWebView.Commands.goForward,
+      null
+    );
   },
 
   /**
    * Go back one page in the web view's history.
    */
   goBack: function() {
-    this.refs[WEBVIEW_REF].goBack();
+    UIManager.dispatchViewManagerCommand(
+      this.getWebViewHandle(),
+      UIManager.RCTGATWebView.Commands.goBack,
+      null
+    );
   },
 
   /**
    * Reloads the current page.
    */
   reload: function() {
-    this.refs[WEBVIEW_REF].reload();
+    this.setState({viewState: WebViewState.LOADING});
+    UIManager.dispatchViewManagerCommand(
+      this.getWebViewHandle(),
+      UIManager.RCTGATWebView.Commands.reload,
+      null
+    );
   },
 
   /**
    * Stop loading the current page.
    */
   stopLoading: function() {
-    this.refs[RCT_WEBVIEW_REF].stopLoading();
+    UIManager.dispatchViewManagerCommand(
+      this.getWebViewHandle(),
+      UIManager.RCTGATWebView.Commands.stopLoading,
+      null
+    );
   },
 
+  /**
+   * We return an event with a bunch of fields including:
+   *  url, title, loading, canGoBack, canGoForward
+   */
+  _updateNavigationState: function(event: Event) {
+    if (this.props.onNavigationStateChange) {
+      this.props.onNavigationStateChange(event.nativeEvent);
+    }
+  },
 
   /**
    * Returns the native `WebView` node.
@@ -403,8 +491,55 @@ var GATWebView = React.createClass({
     return ReactNative.findNodeHandle(this.refs[RCT_WEBVIEW_REF]);
   },
 
+  _onLoadingStart: function(event: Event) {
+    console.log('loading start');
+    var onLoadStart = this.props.onLoadStart;
+    onLoadStart && onLoadStart(event);
+    this._updateNavigationState(event);
+  },
+
+  _onLoadingError: function(event: Event) {
+    console.log('loading error');
+    event.persist(); // persist this event because we need to store it
+    var {onError, onLoadEnd} = this.props;
+    onError && onError(event);
+    onLoadEnd && onLoadEnd(event);
+    console.warn('Encountered an error loading page', event.nativeEvent);
+
+    this.setState({
+      lastErrorEvent: event.nativeEvent,
+      viewState: WebViewState.ERROR
+    });
+  },
+
+  _onLoadingFinish: function(event: Event) {
+    console.log('loading finish');
+    var {onLoad, onLoadEnd} = this.props;
+    onLoad && onLoad(event);
+    onLoadEnd && onLoadEnd(event);
+    this.setState({
+      viewState: WebViewState.IDLE,
+    });
+    this._updateNavigationState(event);
+  },
+  _onCallBackMessage:function(event: Event){
+    if(this.props.onCallBackMessage){
+      this.props.onCallBackMessage(decodeURIComponent(event.nativeEvent.jsJson));
+    }
+    this.setState({
+      viewState: WebViewState.IDLE,
+    });
+    this._updateNavigationState(event);
+  },
 });
 
+var RCTWebView = requireNativeComponent('RCTGATWebView', GATWebView, {
+  nativeOnly: {
+    onLoadingStart: true,
+    onLoadingError: true,
+    onLoadingFinish: true,
+  },
+});
 
 var styles = StyleSheet.create({
   container: {

@@ -1,7 +1,9 @@
 package com.gatwebview.webview;
 
 import android.annotation.TargetApi;
+import android.content.Intent;
 import android.graphics.Bitmap;
+import android.net.Uri;
 import android.os.Build;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
@@ -34,9 +36,6 @@ import com.facebook.react.views.webview.events.TopLoadingErrorEvent;
 import com.facebook.react.views.webview.events.TopLoadingFinishEvent;
 import com.facebook.react.views.webview.events.TopLoadingStartEvent;
 
-import android.content.Intent;
-import android.net.Uri;
-
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Map;
@@ -46,10 +45,10 @@ import java.util.Map;
  */
 public class GATWebViewManager extends SimpleViewManager<WebView>{
     public static final String REACT_CLASS = "GATWebView";
-    //callback event name
-    private static final String E_NAME = "eName";
-    //java script function name
-    private static final String F_NAME = "fName";
+//    //callback event name
+//    private static final String E_NAME = "eName";
+//    //java script function name
+//    private static final String F_NAME = "fName";
     //callback field name
     private static final String JS_JSON_NAME = "jsJson";
     private ReactContext mReactContext;
@@ -62,12 +61,15 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
     public static final int COMMAND_GO_FORWARD = 2;
     public static final int COMMAND_RELOAD = 3;
     public static final int COMMAND_STOP_LOADING = 4;
+    public static final int COMMAND_CALL_JAVASCRIPT = 5;
 
     // Use `webView.loadUrl("about:blank")` to reliably reset the view
     // state and release page resources (including any running JavaScript).
     private static final String BLANK_URL = "about:blank";
 
     private WebViewConfig mWebViewConfig;
+
+    private String mFunctionName = "react";
 
     public GATWebViewManager() {
         mWebViewConfig = new WebViewConfig() {
@@ -115,6 +117,7 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
     @ReactProp(name = "javaScriptEnabled")
     public void setJavaScriptEnabled(WebView view, boolean enabled) {
         view.getSettings().setJavaScriptEnabled(enabled);
+        setJSFunctionName(view);
     }
 
     @ReactProp(name = "scalesPageToFit")
@@ -146,12 +149,28 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
     public void setInjectedJavaScript(WebView view, @javax.annotation.Nullable String injectedJavaScript) {
         ((GATWebView) view).setInjectedJavaScript(injectedJavaScript);
     }
-    @ReactProp(name = "javascriptInterface")
-    public void setJavascriptInterface(WebView view, @Nullable ReadableMap source) {
-        if (source != null && source.hasKey(F_NAME)) {
-            view.addJavascriptInterface(new JavaScriptObject(view), source.getString(F_NAME));
-        }
+
+    @ReactProp(name = "functionName")
+    public void setFunctionName(WebView view, @Nullable String functionName) {
+        mFunctionName = functionName;
     }
+
+    private void setJSFunctionName(WebView view){
+//        String source = "function onEventListener(value){\n" +
+//                mFunctionName+".onEventListener(value);\n" +
+//                "}";
+//        evaluateJavascript(view,source);
+        view.addJavascriptInterface(new JavaScriptObject(view), mFunctionName);
+    }
+
+//    private void evaluateJavascript(WebView root, String javascript) {
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+//            root.evaluateJavascript(javascript, null);
+//        } else {
+//            root.loadUrl("javascript:" + javascript);
+//        }
+//    }
+
 
     @ReactProp(name = "source")
     public void setSource(WebView view, @javax.annotation.Nullable ReadableMap source) {
@@ -216,24 +235,38 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
                 "goBack", COMMAND_GO_BACK,
                 "goForward", COMMAND_GO_FORWARD,
                 "reload", COMMAND_RELOAD,
-                "stopLoading", COMMAND_STOP_LOADING);
+                "stopLoading", COMMAND_STOP_LOADING,
+                "callJavaScript",COMMAND_CALL_JAVASCRIPT);
     }
 
     @Override
     public void receiveCommand(WebView root, int commandId, @javax.annotation.Nullable ReadableArray args) {
         switch (commandId) {
             case COMMAND_GO_BACK:
+                setJSFunctionName(root);
                 root.goBack();
                 break;
             case COMMAND_GO_FORWARD:
+                setJSFunctionName(root);
                 root.goForward();
                 break;
             case COMMAND_RELOAD:
                 root.reload();
+                setJSFunctionName(root);
                 break;
             case COMMAND_STOP_LOADING:
                 root.stopLoading();
                 break;
+            case COMMAND_CALL_JAVASCRIPT:
+                callJavaScript(root,args.getString(0));
+                break;
+        }
+    }
+    private void callJavaScript(WebView view ,String javascript){
+        if (view.getSettings().getJavaScriptEnabled() &&
+                javascript != null &&
+                !TextUtils.isEmpty(javascript)) {
+            view.loadUrl("javascript:(function() {\n" + javascript + ";\n})();");
         }
     }
 
@@ -324,7 +357,6 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
         @Override
         public void doUpdateVisitedHistory(WebView webView, String url, boolean isReload) {
             super.doUpdateVisitedHistory(webView, url, isReload);
-
             dispatchEvent(
                     webView,
                     new TopLoadingStartEvent(
@@ -332,6 +364,7 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
                             SystemClock.nanoTime(),
                             createWebViewEvent(webView, url)));
         }
+
 
         private void emitFinishEvent(WebView webView, String url) {
             dispatchEvent(
@@ -401,6 +434,7 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
         public void setInjectedJavaScript(@javax.annotation.Nullable String js) {
             injectedJS = js;
         }
+
 
         public void callInjectedJavaScript() {
             if (getSettings().getJavaScriptEnabled() &&

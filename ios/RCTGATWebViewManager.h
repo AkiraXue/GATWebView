@@ -7,12 +7,8 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
-#import <UIKit/UIKit.h>
+#import "RCTViewManager.h"
 
-#import "AppDelegate.h"
+@interface RCTGATWebViewManager : RCTViewManager
 
-int main(int argc, char * argv[]) {
-  @autoreleasepool {
-    return UIApplicationMain(argc, argv, nil, NSStringFromClass([AppDelegate class]));
-  }
-}
+@end
