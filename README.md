@@ -1,31 +1,76 @@
 # GATWebView
-## Android implementation steps
+
+## Installation
 1, add the following codes to your `your project folder/package.json`
 ```
 "dependencies": {
-    "react-native-gat-webview":"git+ssh://git@gitlab.wuxingdev.cn:frontend/GATWebView.git#0.16-webview"
+    "react-native-gat-webview":"git+ssh://git@gitlab.wuxingdev.cn:frontend/GATWebView.git#0.17-webview"
   }
 ```
 2, use command
 ```
 $npm install
 ```
-3, add the following codes to your `android/settings.gradle`
+
+## IOS
+1, go to xcode's Project Navigator tab
+<p align="center">
+    <img src = "doc/assets/01.png"/>
+</p>
+
+2, right click on `Libraries`
+
+3, select `Add Files to ...` option
+<p align ="center">
+  <img src = "doc/assets/02.png"/>
+</p>
+
+4, navigate to `node_modules/react-native-gat-webview/ios` and add `GATWebView.xcodeproj` folder
+<p align ="center">
+  <img src = "doc/assets/03.png"/>
+</p>
+
+5, on project `Project Navigator` tab, click on your project's name and select Target's name and from there click on `Build Phases`
+<p align ="center">
+  <img src = "doc/assets/04.png"/>
+</p>
+
+6, expand `Link Binary With Libraries` and click `+` sign to add a new one.
+
+7, select `libGATWebView.a` and click `Add` button.
+<p align ="center">
+  <img src = "doc/assets/05.png"/>
+</p>
+
+8, click `Build Settings` and search `Header Search Paths` on the search box. double click item.
+<p align ="center">
+  <img src = "doc/assets/06.png"/>
+</p>
+
+9, click `+` write in `$(SRCROOT)/../../react-native-gat-webview/ios` and select `recursive`.
+<p align ="center">
+  <img src = "doc/assets/07.png"/>
+</p>
+
+10, clean compile to make sure your project can compile and build.
+
+## Android
+1, add the following codes to your `android/settings.gradle`
 ```
 include ':app', ':react-native-gat-webview'
 project(':react-native-gat-webview').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-gat-webview/android')
 ```
-4, edit `android/app/build.gradle` and add the following line inside `dependencies`
+2, edit `android/app/build.gradle` and add the following line inside `dependencies`
 ```
 compile project(':react-native-gat-webview')
 ```
-5, add the following import to `MainApplication.java` of your application
+3, add the following import to `MainApplication.java` of your application
 
 ```java
 import com.gatwebview.GATWebViewPackage;
 ```
 
-6, add the following code to add the package to `MainApplication.java`
+4, add the following code to add the package to `MainApplication.java`
 
 ```java
 protected List<ReactPackage> getPackages() {
@@ -35,7 +80,7 @@ protected List<ReactPackage> getPackages() {
         );
     }
 ```
-7, run `react-native run-android` to see if everything is compilable.
+5, run `react-native run-android` to see if everything is compilable.
 
 ## Usage
 
@@ -44,9 +89,12 @@ just import the module
 import GATWebView from 'react-native-gat-webview';
 ```
 
-#### javascriptInterface
+#### functionName
 `Android only`
 This is Android native `WebView` method , implement `html->javascript` visit `react-native`.
+
+#### callJavaScript(message)
+the message must be in string. because this is the only way to send data back and forth between native and webview.
 
 #### onCallBackMessage
 It's callback message for  `html->javascript` visit `react-native`.
@@ -62,33 +110,42 @@ import {
   StyleSheet,
   View,
   Text,
-  ToastAndroid,
+  Alert,
 } from 'react-native';
 import GATWebView from 'react-native-gat-webview';
-import URI from './webview.html';
+var WEBVIEW_REF = 'gatwebview';
 class WebViewComponent extends Component{
 
   _onCallBackMessage(event:Event){
-    ToastAndroid.show('Message:'+event,ToastAndroid.SHORT);
+
+      Alert.alert('Message:'+event);
+
+    if(event === `{'key1':'value1','key2':2}`){
+      this.refs[WEBVIEW_REF].callJavaScript(`show('cc')`);
+    }
+
   }
 
   render(){
     return(
       <View style={{flex:1}}>
         <GATWebView
+          ref={WEBVIEW_REF}
           source={require('./webview.html')}
           javaScriptEnabled={true}
           domStorageEnabled={true}
           startInLoadingState={true}
-          javascriptInterface = {{fName:'react'}}
-          onCallBackMessage = {this._onCallBackMessage}/>
-        </View>
+          functionName = {'react'}
+          mediaPlaybackRequiresUserAction ={true}
+          onCallBackMessage = {this._onCallBackMessage.bind(this)}/>
+          </View>
     );
   }
 
 }
 
 export default WebViewComponent;
+
 ```
 `webview.html`
 ```html
@@ -104,16 +161,34 @@ export default WebViewComponent;
     </style>
 </head>
 <script  type="text/javascript">
-function welcome(){
-   //react is GATWebView->javascriptInterface define.
-   react.onEventListener('{\'key1\':\'value1\',\'key2\':2}');
-}
+  function listener(vlue){
+    if (/(iPhone|iPad|iPod|iOS)/i.test(navigator.userAgent)) {
+      onEventListener(vlue);
+    } else if (/(Android)/i.test(navigator.userAgent)) {
+    //react is GATWebView->javascriptInterface define.
+      react.onEventListener(vlue);
+    }
+  }
+  function welcome(){
+    listener('{\'key1\':\'value1\',\'key2\':2}');
+  }
+
 </script>
 <body>
-<input type="button" value="touch me" onclick="welcome();" class = "btn">
+<input type="button" value="点击我" onclick="welcome();" class = "btn">
 <br/>
-<a href="gatapp://pay?{'status':'9'}">pay</a>
+<a href="gatapp://pay?{'status':'9中文'}">pay</a>
+<br/>
+<p id="demo"></p>
 </body>
 </html>
+<script>
+  var x=document.getElementById("demo");
+  function show(value)
+  {
+    x.innerHTML=x.innerHTML+value;
+  }
+</script>
+
 
 ```
