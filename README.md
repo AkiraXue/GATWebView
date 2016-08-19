@@ -47,7 +47,7 @@ $npm install
   <img src = "doc/assets/06.png"/>
 </p>
 
-9, click `+` write in `$(SRCROOT)/../../react-native-gat-webview/ios` and select `recursive`.
+9, click `+` write in `$(SRCROOT)/../node_modules/react-native-gat-webview/ios` and select `recursive`.
 <p align ="center">
   <img src = "doc/assets/07.png"/>
 </p>
