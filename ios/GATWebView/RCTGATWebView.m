@@ -185,6 +185,8 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 - (BOOL)webView:(__unused UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request
  navigationType:(UIWebViewNavigationType)navigationType
 {
+    //register JS Listener
+    [self registerJSListener:webView];
 
   NSString *url =request.URL.absoluteString;
   BOOL isJSNavigation = [request.URL.scheme isEqualToString:RCTWebViewScheme];
@@ -239,6 +241,26 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
   return !isJSNavigation;
 }
 
+
+-(void)registerJSListener:(UIWebView*) webView
+{
+
+    JSContext *context = [webView valueForKeyPath:@"documentView.webView.mainFrame.javaScriptContext"];
+    context[@"onEventListener"] = ^() {
+
+        NSArray *args = [JSContext currentArguments];
+        NSMutableDictionary<NSString *, id> *event = [self baseEvent];
+        NSString *value=@"";
+        for (JSValue *jsVal in args) {
+            value =[value stringByAppendingString:jsVal.toString];
+        }
+        event[@"jsJson"] = value;
+        _onCallBackMessage(event);
+
+    };
+
+}
+
 - (void)webView:(__unused UIWebView *)webView didFailLoadWithError:(NSError *)error
 {
   if (_onLoadingError) {
@@ -262,20 +284,8 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)webViewDidFinishLoad:(UIWebView *)webView
 {
-  JSContext *context = [webView valueForKeyPath:@"documentView.webView.mainFrame.javaScriptContext"];
-  context[@"onEventListener"] = ^() {
-    
-    NSArray *args = [JSContext currentArguments];
-    NSMutableDictionary<NSString *, id> *event = [self baseEvent];
-    NSString *value=@"";
-    for (JSValue *jsVal in args) {
-      value =[value stringByAppendingString:jsVal.toString];
-    }
-    event[@"jsJson"] = value;
-    _onCallBackMessage(event);
-    
-  };
-  
+
+
   if (_injectedJavaScript != nil) {
     NSString *jsEvaluationValue = [webView stringByEvaluatingJavaScriptFromString:_injectedJavaScript];
 
