@@ -4,7 +4,7 @@
 1, add the following codes to your `your project folder/package.json`
 ```
 "dependencies": {
-    "react-native-gat-webview":"guanaitong/GATWebView.git#0.20"
+    "react-native-gat-webview":"guanaitong/GATWebView.git#0.20.0"
   }
 ```
 2, use command
