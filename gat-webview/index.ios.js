@@ -22,11 +22,11 @@ import {
  Text,
  View,
  ScrollView,
+ UIManager,
  requireNativeComponent,
  NativeModules,
 }from 'react-native';
 
-var UIManager = require('UIManager');
 
 var deprecatedPropType = require('react-native/Libraries/Utilities/deprecatedPropType');
 var invariant = require('fbjs/lib/invariant');
