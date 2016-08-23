@@ -188,14 +188,19 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     //register JS Listener
     [self registerJSListener:webView];
 
-  NSString *url =request.URL.absoluteString;
-  BOOL isJSNavigation = [request.URL.scheme isEqualToString:RCTWebViewScheme];
-  if([request.URL.scheme isEqualToString:@"gatapp"]){
-    NSMutableDictionary<NSString *, id> *event = [self baseEvent];
-    event[@"jsJson"] = [url substringFromIndex:9];
-    _onCallBackMessage(event);
-    return NO;
-  }
+    NSString *url =request.URL.absoluteString;
+     BOOL isJSNavigation = [request.URL.scheme isEqualToString:RCTWebViewScheme];
+
+     for (NSString *scheme in _schemeShield) {
+         if([request.URL.scheme isEqualToString:scheme]){
+             NSMutableDictionary<NSString *, id> *event = [self baseEvent];
+             NSRange range = [url rangeOfString:@"://"];
+             event[@"jsJson"] = [url substringFromIndex:range.location+3];
+             _onCallBackMessage(event);
+             return NO;
+         }
+     }
+
 
   static NSDictionary<NSNumber *, NSString *> *navigationTypes;
   static dispatch_once_t onceToken;

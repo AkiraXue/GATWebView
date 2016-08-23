@@ -64,6 +64,8 @@ var GATWebView = React.createClass({
     style: View.propTypes.style,
     onCallBackMessage: PropTypes.func,
 
+    schemeShield:PropTypes.arrayOf(PropTypes.string),
+
     html: deprecatedPropType(
       PropTypes.string,
       'Use the `source` prop instead.'
@@ -223,6 +225,7 @@ var GATWebView = React.createClass({
         key="gatwebViewKey"
         style={webViewStyles}
         source={resolveAssetSource(source)}
+        schemeShield={this.props.schemeShield}
         scalesPageToFit={this.props.scalesPageToFit}
         injectedJavaScript={this.props.injectedJavaScript}
         userAgent={this.props.userAgent}

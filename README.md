@@ -4,7 +4,7 @@
 1, add the following codes to your `your project folder/package.json`
 ```
 "dependencies": {
-    "react-native-gat-webview":"guanaitong/GATWebView.git#0.19-webview"
+    "react-native-gat-webview":"guanaitong/GATWebView.git#0.20"
   }
 ```
 2, use command
@@ -88,6 +88,8 @@ just import the module
 ```js
 import GATWebView from 'react-native-gat-webview';
 ```
+#### schemeShield
+Configuration `schemeShield` implement requester block and callback.
 
 #### functionName
 `Android only`
@@ -135,6 +137,7 @@ class WebViewComponent extends Component{
           javaScriptEnabled={true}
           domStorageEnabled={true}
           startInLoadingState={true}
+          schemeShield = {['gatimage','gatpay','gatapp']}
           functionName = {'react'}
           mediaPlaybackRequiresUserAction ={true}
           onCallBackMessage = {this._onCallBackMessage.bind(this)}/>
@@ -175,9 +178,11 @@ export default WebViewComponent;
 
 </script>
 <body>
-<input type="button" value="点击我" onclick="welcome();" class = "btn">
+<input type="button" value="Touch me" onclick="welcome();" class = "btn">
 <br/>
-<a href="gatapp://pay?{'status':'9中文'}">pay</a>
+<a href="gatpay://pay?{'status':'9中文'}">pay</a>
+<a href="gatimage://image?{'status':'9中文'}">image</a>
+<a href="gatapp://app?{'status':'9中文'}">app</a>
 <br/>
 <p id="demo"></p>
 </body>

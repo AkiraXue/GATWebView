@@ -22,10 +22,11 @@ import {
  Text,
  View,
  ScrollView,
- UIManager,
  requireNativeComponent,
  NativeModules,
 }from 'react-native';
+
+var UIManager = require('UIManager');
 
 var deprecatedPropType = require('react-native/Libraries/Utilities/deprecatedPropType');
 var invariant = require('fbjs/lib/invariant');
@@ -126,6 +127,8 @@ var GATWebView = React.createClass({
 
   propTypes: {
     ...View.propTypes,
+
+    schemeShield:PropTypes.arrayOf(PropTypes.string),
 
     html: deprecatedPropType(
       PropTypes.string,
@@ -397,6 +400,7 @@ var GATWebView = React.createClass({
         key="webViewKey"
         style={webViewStyles}
         source={resolveAssetSource(source)}
+        schemeShield={this.props.schemeShield}
         injectedJavaScript={this.props.injectedJavaScript}
         bounces={this.props.bounces}
         scrollEnabled={this.props.scrollEnabled}

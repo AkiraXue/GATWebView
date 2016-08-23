@@ -7,6 +7,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.ViewGroup.LayoutParams;
 import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
@@ -43,15 +44,14 @@ import java.util.Map;
 /**
  * Created by Mars on 7/26/16 17:34.
  */
-public class GATWebViewManager extends SimpleViewManager<WebView>{
+public class GATWebViewManager extends SimpleViewManager<WebView> {
     public static final String REACT_CLASS = "GATWebView";
-//    //callback event name
+    //    //callback event name
 //    private static final String E_NAME = "eName";
 //    //java script function name
 //    private static final String F_NAME = "fName";
     //callback field name
     private static final String JS_JSON_NAME = "jsJson";
-    private ReactContext mReactContext;
     private static final String HTML_ENCODING = "UTF-8";
     private static final String HTML_MIME_TYPE = "text/html; charset=utf-8";
 
@@ -70,6 +70,7 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
     private WebViewConfig mWebViewConfig;
 
     private String mFunctionName = "react";
+    private GATWebViewClient mWebViewClient;
 
     public GATWebViewManager() {
         mWebViewConfig = new WebViewConfig() {
@@ -91,26 +92,26 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
     protected WebView createViewInstance(ThemedReactContext reactContext) {
         GATWebView webView = new GATWebView(reactContext);
         webView.setWebChromeClient(new WebChromeClient() {
-      @Override
-      public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
-        callback.invoke(origin, true, false);
-      }
-    });
-    reactContext.addLifecycleEventListener(webView);
-    mWebViewConfig.configWebView(webView);
-    webView.getSettings().setBuiltInZoomControls(true);
-    webView.getSettings().setDisplayZoomControls(false);
+            @Override
+            public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
+                callback.invoke(origin, true, false);
+            }
+        });
+        reactContext.addLifecycleEventListener(webView);
+        mWebViewConfig.configWebView(webView);
+        webView.getSettings().setBuiltInZoomControls(true);
+        webView.getSettings().setDisplayZoomControls(false);
 
-    // Fixes broken full-screen modals/galleries due to body height being 0.
-    webView.setLayoutParams(
-            new LayoutParams(LayoutParams.MATCH_PARENT,
-                LayoutParams.MATCH_PARENT));
+        // Fixes broken full-screen modals/galleries due to body height being 0.
+        webView.setLayoutParams(
+                new LayoutParams(LayoutParams.MATCH_PARENT,
+                        LayoutParams.MATCH_PARENT));
 
-        mReactContext = reactContext;
+
         if (ReactBuildConfig.DEBUG && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             WebView.setWebContentsDebuggingEnabled(true);
         }
-
+        mWebViewClient = new GATWebViewClient(reactContext);
         return webView;
     }
 
@@ -155,7 +156,12 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
         mFunctionName = functionName;
     }
 
-    private void setJSFunctionName(WebView view){
+    @ReactProp(name = "schemeShield")
+    public void setSchemeShield(WebView view, ReadableArray array) {
+        mWebViewClient.setSchemeShield(array);
+    }
+
+    private void setJSFunctionName(WebView view) {
 //        String source = "function onEventListener(value){\n" +
 //                mFunctionName+".onEventListener(value);\n" +
 //                "}";
@@ -225,18 +231,19 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
     @Override
     protected void addEventEmitters(ThemedReactContext reactContext, WebView view) {
         // Do not register default touch emitter and let WebView implementation handle touches
-        view.setWebViewClient(new GATWebViewClient(reactContext));
+        view.setWebViewClient(mWebViewClient);
     }
 
     @Override
-    public @javax.annotation.Nullable
+    public
+    @javax.annotation.Nullable
     Map<String, Integer> getCommandsMap() {
         return MapBuilder.of(
                 "goBack", COMMAND_GO_BACK,
                 "goForward", COMMAND_GO_FORWARD,
                 "reload", COMMAND_RELOAD,
                 "stopLoading", COMMAND_STOP_LOADING,
-                "callJavaScript",COMMAND_CALL_JAVASCRIPT);
+                "callJavaScript", COMMAND_CALL_JAVASCRIPT);
     }
 
     @Override
@@ -258,11 +265,12 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
                 root.stopLoading();
                 break;
             case COMMAND_CALL_JAVASCRIPT:
-                callJavaScript(root,args.getString(0));
+                callJavaScript(root, args.getString(0));
                 break;
         }
     }
-    private void callJavaScript(WebView view ,String javascript){
+
+    private void callJavaScript(WebView view, String javascript) {
         if (view.getSettings().getJavaScriptEnabled() &&
                 javascript != null &&
                 !TextUtils.isEmpty(javascript)) {
@@ -278,32 +286,45 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
     }
 
 
-
     private static class GATWebViewClient extends WebViewClient {
 
+        private ReadableArray mSchemeShield;
         private ReactContext mReactContext;
-        public GATWebViewClient(ReactContext reactContext){
+
+        public GATWebViewClient(ReactContext reactContext) {
             this.mReactContext = reactContext;
+        }
+
+        public void setSchemeShield(ReadableArray schemeShield) {
+            this.mSchemeShield = schemeShield;
         }
 
         @Override
         public boolean shouldOverrideUrlLoading(WebView view, String url) {
-          if (url.startsWith("http://") || url.startsWith("https://")) {
-         return false;
-       }else if(url.contains("gatapp://")){
-           WritableMap event = Arguments.createMap();
-           event.putString(JS_JSON_NAME, url.substring(url.indexOf("//")+2));
-           mReactContext.getJSModule(RCTEventEmitter.class).receiveEvent(
-                   view.getId(),
-                   "topChange",
-                   event);
-           return true;
-       } else {
-         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-         view.getContext().startActivity(intent);
-         return true;
-       }
+
+            if (mSchemeShield != null && mSchemeShield.size() > 0) {
+                for (int index = 0; index < mSchemeShield.size(); index++) {
+                    String scheme = mSchemeShield.getString(index);
+                    if (url.contains(scheme + "://")) {
+                        WritableMap event = Arguments.createMap();
+                        event.putString(JS_JSON_NAME, url.substring(url.indexOf("//") + 2));
+                        mReactContext.getJSModule(RCTEventEmitter.class).receiveEvent(
+                                view.getId(),
+                                "topChange",
+                                event);
+                        return true;
+                    }
+                }
+            }
+
+            if (url.startsWith("http://") || url.startsWith("https://")) {
+                return false;
+            } else {
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                view.getContext().startActivity(intent);
+                return true;
+            }
 
         }
 
@@ -402,15 +423,15 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
      * to call {@link WebView#destroy} on activty destroy event and also to clear the client
      */
     private static class GATWebView extends WebView implements LifecycleEventListener {
-        private @javax.annotation.Nullable
+        private
+        @javax.annotation.Nullable
         String injectedJS;
 
         /**
          * WebView must be created with an context of the current activity
-         *
+         * <p/>
          * Activity Context is required for creation of dialogs internally by WebView
          * Reactive Native needed for access to ReactNative internal system functionality
-         *
          */
         public GATWebView(ThemedReactContext reactContext) {
             super(reactContext);
@@ -463,7 +484,7 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
         @JavascriptInterface
         public void onEventListener() {
             WritableMap event = Arguments.createMap();
-            ReactContext reactContext = (ReactContext)mWebView.getContext();
+            ReactContext reactContext = (ReactContext) mWebView.getContext();
             reactContext.getJSModule(RCTEventEmitter.class).receiveEvent(
                     mWebView.getId(),
                     "topChange",
@@ -475,7 +496,7 @@ public class GATWebViewManager extends SimpleViewManager<WebView>{
 
             WritableMap event = Arguments.createMap();
             event.putString(JS_JSON_NAME, json);
-            ReactContext reactContext = (ReactContext)mWebView.getContext();
+            ReactContext reactContext = (ReactContext) mWebView.getContext();
             reactContext.getJSModule(RCTEventEmitter.class).receiveEvent(
                     mWebView.getId(),
                     "topChange",

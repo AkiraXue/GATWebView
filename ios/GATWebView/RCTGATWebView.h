@@ -31,6 +31,7 @@ shouldStartLoadForRequest:(NSMutableDictionary<NSString *, id> *)request
 
 @property (nonatomic, weak) id<RCTGATWebViewDelegate> delegate;
 
+@property (nonatomic, strong) NSArray *schemeShield;
 @property (nonatomic, copy) NSDictionary *source;
 @property (nonatomic, assign) UIEdgeInsets contentInset;
 @property (nonatomic, assign) BOOL automaticallyAdjustContentInsets;
